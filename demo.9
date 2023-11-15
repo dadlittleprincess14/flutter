@@ -1,0 +1,194 @@
+
+
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// ignore: depend_on_referenced_packages
+import 'package:timezone/data/latest.dart' as tz;
+// ignore: depend_on_referenced_packages
+import 'package:timezone/timezone.dart' as tz;
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Reminder App',
+      home: ReminderPage(),
+    );
+  }
+}
+
+class ReminderPage extends StatefulWidget {
+  @override
+  _ReminderPageState createState() => _ReminderPageState();
+}
+
+class _ReminderPageState extends State<ReminderPage> {
+  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+
+  @override
+  void initState() {
+    super.initState();
+    tz.initializeTimeZones();
+    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    _configureLocalTimeZone();
+  }
+
+  Future<void> _configureLocalTimeZone() async {
+    String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  }
+
+  Future<void> _scheduleNotification(String day, int hour, int minute, String activity) async {
+    // ignore: prefer_const_constructors
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'your channel id',
+      'your channel name',
+      'your channel description',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    var iOSPlatformChannelSpecifics = IOSNotificationDetails();
+    var platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+
+    var now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    if (now.isAfter(scheduledDate)) {
+      scheduledDate = scheduledDate.add(Duration(days: 1));
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      0,
+      'Reminder',
+      'Time for $activity!',
+      scheduledDate,
+      platformChannelSpecifics,
+      // ignore: deprecated_member_use
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Reminder App'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            DropdownButton<String>(
+              hint: Text('Select day'),
+              items: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                  .map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: (String selectedDay) {
+                // Handle day selection
+              },
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Text('Select time: '),
+                // You can use a time picker package or implement your own
+                // For simplicity, we'll use a simple dropdown for the hour and minute
+                DropdownButton<int>(
+                  hint: Text('Hour'),
+                  items: List.generate(24, (index) => index)
+                      .map((int value) {
+                    return DropdownMenuItem<int>(
+                      value: value,
+                      child: Text(value.toString().padLeft(2, '0')),
+                    );
+                  }).toList(),
+                  onChanged: (int selectedHour) {
+                    // Handle hour selection
+                  },
+                ),
+                Text(':'),
+                DropdownButton<int>(
+                  hint: Text('Minute'),
+                  items: List.generate(60, (index) => index)
+                      .map((int value) {
+                    return DropdownMenuItem<int>(
+                      value: value,
+                      child: Text(value.toString().padLeft(2, '0')),
+                    );
+                  }).toList(),
+                  onChanged: (int selectedMinute) {
+                    // Handle minute selection
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            DropdownButton<String>(
+              hint: Text('Select activity'),
+              items: [
+                'Wake up',
+                'Go to gym',
+                'Breakfast',
+                'Meetings',
+                'Lunch',
+                'Quick nap',
+                'Go to library',
+                'Dinner',
+                'Go to sleep',
+              ].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: (String selectedActivity) {
+                // Handle activity selection
+              },
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                // Schedule notification when the button is pressed
+                // Fetch selected day, time, and activity to pass to _scheduleNotification
+                String selectedDay; // Get the selected day
+                int selectedHour; // Get the selected hour
+                int selectedMinute; // Get the selected minute
+                String selectedActivity; // Get the selected activity
+
+                _scheduleNotification(selectedDay, selectedHour, selectedMinute, selectedActivity);
+              },
+              child: Text('Set Reminder'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class IOSNotificationDetails {
+}
+
+class FlutterNativeTimezone {
+  static getLocalTimezone() {}
+}
